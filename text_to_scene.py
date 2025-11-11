@@ -49,7 +49,8 @@ def parse_args():
     parser.add_argument(
         "--model-name",
         type=str,
-        default="gpt-4o",
+        #default="gpt-4o",
+        default="deepseek-chat",
         help="The model name",
     )
     parser.add_argument(
@@ -122,7 +123,8 @@ def split_planning_response(response):
 
 def text_to_scene(
     input_prompt: str,
-    model_name: str = "gpt-4o",
+    #model_name: str = "gpt-4o",
+    model_name: str = "deepseek-chat",
     map_folder: str = "maps",
     ip_address: str = "localhost",
     port: int = 2000,
@@ -134,7 +136,10 @@ def text_to_scene(
     max_retry: int = 3,
     override_option: bool = False,
 ):
-    chat_client = OpenAI()
+    chat_client = OpenAI(
+        api_key=os.environ.get('DEEPSEEK_API_KEY'),
+        base_url=os.environ.get('DEEPSEEK_API_BASE')
+    )
     analysis_success = False
     analysis_check_output = None
     analysis_output = None
