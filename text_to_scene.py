@@ -124,7 +124,7 @@ def split_planning_response(response):
 def text_to_scene(
     input_prompt: str,
     #model_name: str = "gpt-4o",
-    model_name: str = "deepseek-chat",
+    model_name: str = os.environ.get('MODEL_NAME'),
     map_folder: str = "maps",
     ip_address: str = "localhost",
     port: int = 2000,
@@ -232,13 +232,13 @@ def text_to_scene(
             planning_input = PLANNING_FORMAT.format(
                 description=input_prompt,
                 analysis_context=analysis_output,
-                return_ego={"True" if return_ego else "False"},
+                return_ego="True" if return_ego else "False",
             )
         else:
             planning_input = PLANNING_FORMAT_WITH_ERROR.format(
                 description=input_prompt,
                 analysis_context=analysis_output,
-                return_ego={"True" if return_ego else "False"},
+                return_ego="True" if return_ego else "False",
                 error=planning_check_output,
                 previous_output=planning_output,
             )

@@ -6,9 +6,19 @@ from misc.constant import (
     ROAD_TYPE,
     WEATHER,
 )
-
+import json
 
 def check_parsable(input):
+    """
+    安全解析 DeepSeek 模型输出。
+    优先用 json.loads()（支持 true/false/null），失败后再尝试 eval()。
+    """
+    if isinstance(input, dict):
+        return input
+    try:
+        return json.loads(input)
+    except Exception:
+        pass
     try:
         return eval(input)
     except Exception:
