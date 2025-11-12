@@ -1,7 +1,10 @@
+"""为分析阶段的输出结果提供一系列校验函数。"""
+
 from misc.constant import ACTION, AGENT_TYPE, ROAD_TYPE
 
 
 def check_parsable(input):
+    """尝试解析字符串为字典，失败时返回错误提示。"""
     try:
         return eval(input)
     except Exception:
@@ -9,6 +12,7 @@ def check_parsable(input):
 
 
 def check_key_in_dict(input):
+    """校验顶层字典的键是否完整且没有冗余。"""
     if len(input) > 4:
         return "There should only be `signals`, `objects`, `agents` and `unknown` keys in the dictionary.\n"
     elif len(input) < 4:
@@ -25,6 +29,7 @@ def check_key_in_dict(input):
 
 
 def check_key_in_agents(input):
+    """检查每个 agent 字段是否包含必要的键。"""
     agents = input["agents"]
     output_message = ""
     for agent in agents:
@@ -41,6 +46,7 @@ def check_key_in_agents(input):
 
 
 def check_key_type_in_agents(input):
+    """确认 agent 的属性值是否落在预设范围。"""
     agents = input["agents"]
     output_message = ""
     for agent in agents:
@@ -57,6 +63,7 @@ def check_key_type_in_agents(input):
 
 
 def check_analysis_output(input):
+    """综合调用所有检查函数并返回最终结果。"""
     all_func = [check_key_in_dict, check_key_in_agents, check_key_type_in_agents]
 
     output = check_parsable(input)

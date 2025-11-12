@@ -1,3 +1,5 @@
+"""对外暴露提示词与校验函数的统一入口。"""
+
 from .analysis_exception import check_analysis_output
 from .planning_exception import check_planning_output
 from .prompt import SYSTEM_PROMPT

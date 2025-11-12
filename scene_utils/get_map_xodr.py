@@ -1,9 +1,12 @@
+"""导出 CARLA 地图的 OpenDRIVE 数据，便于离线分析或复现。"""
+
 import argparse
 
 import carla
 
 
 def parse_args():
+    """解析命令行参数，允许用户自定义连接信息及输出路径。"""
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="127.0.0.1")
     parser.add_argument("--port", type=int, default=2000)
@@ -13,6 +16,7 @@ def parse_args():
 
 
 def get_map_xodr(world, save_path=None):
+    """从当前世界中提取 OpenDRIVE 内容并按需写入文件。"""
     opendrive = world.get_map().to_opendrive()
     if save_path:
         with open(save_path, "w") as file:
