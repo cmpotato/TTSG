@@ -1,3 +1,5 @@
+"""集中管理场景中非机动车辆（骑行者）的生成、行为设定与生命周期。"""
+
 import random
 from typing import Optional
 
@@ -21,12 +23,15 @@ LANE_DIFF_FACTOR = 1.5
 
 
 class CyclistManager:
+    """围绕骑行者的生成、动作与销毁提供统一接口。"""
+
     def __init__(
         self,
         graph_manager: GraphManager,
         agent_model_manager: Optional[AgentModelManager] = None,
         world_manager: Optional[WorldManager] = None,
     ):
+        # 依赖的管理器在运行时可动态注入，便于复用
         self.agent_model_manager = agent_model_manager
         self.world_manager = world_manager
         self.graph_manager = graph_manager
@@ -36,14 +41,17 @@ class CyclistManager:
         self.back_pos_id_to_waypoint = {}
 
     def set_pos_id_to_waypoints(self, vehicle_manager):
+        """同步车辆管理器中记录的编号到航点的映射。"""
         self.front_pos_id_to_waypoint = vehicle_manager.front_pos_id_to_waypoint
         self.back_pos_id_to_waypoint = vehicle_manager.back_pos_id_to_waypoint
 
     def set_new_manager(self, agent_model_manager: AgentModelManager, world_manager: WorldManager):
+        """在切换场景时更新依赖的蓝图与世界管理器。"""
         self.agent_model_manager = agent_model_manager
         self.world_manager = world_manager
 
     def get_left_straight_right(self, waypoint, get_road_id_only=False, debug=False):
+        """根据当前航点推断路口可行方向，并返回对应的目标航点或 road_id。"""
         waypoint = get_points_to_front(waypoint)[-1]
         move_one_more_forward = waypoint.next(DISTANCE_FOR_ROUTE)
         if move_one_more_forward is None or len(move_one_more_forward) == 0:
@@ -95,6 +103,7 @@ class CyclistManager:
     def set_cyclist_agent_action(
         self, agent: CyclistAgent, action, ego_agent, spawn_point, init_road_type, num_interpolate=10
     ):
+        """按照脚本描述为骑行者配置目的地、变道或堵车行为。"""
         go_left_straight_right = self.get_left_straight_right(
             self.world_manager.get_waypoint_from_location(
                 location=agent.agent._vehicle.get_location(),
@@ -124,7 +133,7 @@ class CyclistManager:
                 agent.agent.lane_change("right")
             agent.use_original = True
         elif action == "block_the_ego" and init_road_type not in ["sidewalk", "shoulder"]:
-            # Set the same location as the ego vehicle
+            # 与自车占位相同，用于制造阻塞场景
             destination = self.vehicle_agent[0].destination_waypoint.next(DISTANCE_FOR_ROUTE * 5)[0]
             agent.agent.set_destination(
                 destination.transform.location,
@@ -161,9 +170,11 @@ class CyclistManager:
                 get_points_to_front(spawn_point)[1:] + get_points_to_end(spawn_point)[1:]
             )
 
+            # 在路侧随机取一点，让骑行者自由前行
             agent.set_destination(self.world_manager, destination, spawn_point, num_interpolate)
 
     def create_cyclist_agent(self, vehicle, agent_info, ego_agent, ego_car_point, spawn_point):
+        """根据配置生成 CyclistAgent 实例并绑定至 CARLA 载具。"""
         behavior = agent_info.get("behavior", "normal")
         agent = CyclistAgent(
             vehicle, behavior=behavior, plan=agent_info["action"] == "block_the_ego"
@@ -174,6 +185,7 @@ class CyclistManager:
         return agent
 
     def spawn_cyclist(self, agent, ego_agent, ego_car_point, spawn_point):
+        """在指定航点尝试生成骑行者及其控制器。"""
         cyclist_bp = self.agent_model_manager.get_blueprint_from_type("bicycle")
         new_spawn_point = carla.Transform(
             spawn_point.transform.location + carla.Location(z=2), spawn_point.transform.rotation
@@ -186,6 +198,7 @@ class CyclistManager:
             self.cyclist_agent.append(agent)
 
     def check_cyclist_spawn_type(self, waypoint, target_road_type=None):
+        """判断当前航点最适合的道路类型，保证生成在合法区域。"""
         for road_type in ["Sidewalk", "Shoulder", "Driving"]:
             if target_road_type is not None and road_type.lower() != target_road_type:
                 continue
@@ -197,6 +210,7 @@ class CyclistManager:
         return "Driving"
 
     def spawn_cyclists(self, agent_info, ego_agent):
+        """依据场景配置批量生成骑行者并为其选择相对位置。"""
         ego_waypoint = self.world_manager.get_waypoint_from_location(
             ego_agent._vehicle.get_location(), carla.LaneType.Driving
         )
@@ -246,6 +260,7 @@ class CyclistManager:
             self.spawn_cyclist(agent, ego_agent, ego_waypoint, spawn_point)
 
     def run_step(self):
+        """逐帧推进所有骑行者的智能体逻辑，并清理已完成的对象。"""
         cyclist_agent = []
         for agent in self.cyclist_agent:
             if not agent.done():
@@ -254,6 +269,7 @@ class CyclistManager:
         self.cyclist_agent = cyclist_agent
 
     def clean(self):
+        """销毁所有已生成的骑行者，防止残留实例影响下一轮仿真。"""
         for cyclist in self.cyclists:
             if cyclist.is_alive:
                 cyclist.destroy()

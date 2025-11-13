@@ -1,3 +1,5 @@
+"""为场景中的行人提供生成、目标设定及清理等一站式管理。"""
+
 import random
 from typing import Optional
 
@@ -25,6 +27,8 @@ MAX_DEPTH = 10
 
 
 class PedestrianManager:
+    """封装行人蓝图抽取、行为配置及 AI 控制器生命周期管理。"""
+
     def __init__(
         self,
         agent_model_manager: Optional[AgentModelManager] = None,
@@ -39,10 +43,12 @@ class PedestrianManager:
         self.back_pos_id_to_waypoint = {}
 
     def set_pos_id_to_waypoints(self, vehicle_manager):
+        """引用车辆管理器中的相对位置映射，保证多类参与者一致。"""
         self.front_pos_id_to_waypoint = vehicle_manager.front_pos_id_to_waypoint
         self.back_pos_id_to_waypoint = vehicle_manager.back_pos_id_to_waypoint
 
     def spawn_pedestrian(self, agent, spawn_point, ego_agent, ego_car_point):
+        """根据给定配置生成行人与控制器，并设置对应行为。"""
         walker_bp = self.agent_model_manager.get_blueprint_from_type("pedestrian")
         if walker_bp.has_attribute("is_invincible"):
             walker_bp.set_attribute("is_invincible", "false")
@@ -58,6 +64,7 @@ class PedestrianManager:
             else:
                 spawn_point = spawn_point[-1]
 
+        # 略微抬升生成位置，防止人物与地面穿模
         new_spawn_point = carla.Transform(
             spawn_point.transform.location + carla.Location(z=2), spawn_point.transform.rotation
         )
@@ -120,6 +127,7 @@ class PedestrianManager:
                         )
                     else:
                         destination = spawn_point
+                    # 深度限制用于防止无穷追溯 lane，破坏性能
                     cur_depth = 0
                     while destination.lane_id != ego_lane_id and cur_depth < MAX_DEPTH:
                         new_des = destination.get_left_lane()
@@ -159,6 +167,7 @@ class PedestrianManager:
                             + mixed_point.transform.location * (1 - interp)
                         )
                     if random.random() < 0.1:
+                        # 小概率强制让行人换到另一条车道，制造突发情况
                         find_point = get_different_lane(spawn_point)
                         destination = self.world_manager.get_waypoint_from_location_with_ensure(
                             find_point,
@@ -178,6 +187,7 @@ class PedestrianManager:
             self.walker_controller_list.append(walker_controller)
 
     def check_walker_spawn_type(self, waypoint, target_road_type=None):
+        """根据目标路段类型返回最匹配的生成航点类别。"""
         for road_type in ["Sidewalk", "Shoulder", "Driving"]:
             if target_road_type is not None and road_type.lower() != target_road_type:
                 continue
@@ -190,6 +200,7 @@ class PedestrianManager:
         return "Driving"
 
     def spawn_pedestrians(self, agent_info, ego_agent):
+        """批量生成行人并依据与自车的相对关系布置位置。"""
         ego_waypoint = self.world_manager.get_waypoint_from_location(
             ego_agent._vehicle.get_location(), carla.LaneType.Driving
         )
@@ -267,10 +278,12 @@ class PedestrianManager:
                 self.spawn_pedestrian(agent, spawn_point, ego_agent, ego_waypoint)
 
     def set_new_manager(self, agent_model_manager: AgentModelManager, world_manager: WorldManager):
+        """外部重新初始化时更新依赖，保证引用有效。"""
         self.agent_model_manager = agent_model_manager
         self.world_manager = world_manager
 
     def run_step(self):
+        """推进所有行人控制器逻辑并移除已经完成的实例。"""
         walker_controller_list = []
         for walker_controller in self.walker_controller_list:
             finish = walker_controller.run_step()
@@ -279,6 +292,7 @@ class PedestrianManager:
         self.walker_controller_list = walker_controller_list
 
     def clean(self):
+        """销毁所有与行人相关的实体与 AI 控制器，释放仿真资源。"""
         for pedestrian in self.pedestrian_list:
             if pedestrian.is_alive:
                 pedestrian.destroy()
