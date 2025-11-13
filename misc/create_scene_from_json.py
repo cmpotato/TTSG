@@ -40,7 +40,11 @@ def parse_args():
         default=42,
         help="The seed",
     )
-    parser.add_argument("--json-file", type=str, help="Path to json file")
+    parser.add_argument(
+        "--json-file",
+        type=str,
+        help="Path to json file"
+    )
     parser.add_argument(
         "--map-folder",
         type=str,

@@ -466,3 +466,5 @@ log
 **/bev_image
 **/front_image
 **/*cache
+/save_dir
+/scene_json
