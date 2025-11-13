@@ -1,3 +1,5 @@
+"""车辆管理模块：负责敌/友车的生成、策略设定和生命周期维护。"""
+
 import random
 from collections import defaultdict
 from typing import List, Optional
@@ -49,6 +51,8 @@ POS_TO_INTERFERE_DISTANCE = {
 
 
 class VehicleManager:
+    """统一调度所有车辆相关的生成、动作规划及清理逻辑。"""
+
     def __init__(
         self,
         graph_manager: GraphManager,
@@ -56,6 +60,7 @@ class VehicleManager:
         world_manager: Optional[WorldManager] = None,
         override_option: bool = False,
     ):
+        # 保存不同管理器的引用，便于在多场景之间复用
         self.graph_manager = graph_manager
         self.agent_model_manager = agent_model_manager
         self.world_manager = world_manager
@@ -75,16 +80,19 @@ class VehicleManager:
     def set_new_manager(
         self, agent_model_manager: AgentModelManager, world_manager: WorldManager
     ):
+        """在热切换世界或蓝图时替换内部引用。"""
         self.agent_model_manager = agent_model_manager
         self.world_manager = world_manager
 
     def compute_approximate_num_points(self, agent_type_list, number_of_lane):
+        """估算给定车道数下可容纳的车辆数，便于预分配航点。"""
         required_num_of_points = 0
         for agent in agent_type_list:
             required_num_of_points += AGENT_TYPE_TO_SIZE.get(agent, 3)
         return required_num_of_points // number_of_lane
 
     def get_left_straight_right(self, waypoint, get_road_id_only=False, debug=False):
+        """分析当前道路出口的左/直/右选项，并返回目标航点或 road_id。"""
         waypoint = get_points_to_front(waypoint)[-1]
         move_one_more_forward = waypoint.next(DISTANCE_FOR_ROUTE)
         if move_one_more_forward is None or len(move_one_more_forward) == 0:
@@ -138,6 +146,7 @@ class VehicleManager:
     def set_vehicle_agent_action(
         self, agent: BehaviorAgent, action, info, num_interpolate=10
     ):
+        """根据脚本动作设置车辆的目的地、换道或堵车行为。"""
         go_left_straight_right = self.get_left_straight_right(
             self.world_manager.get_waypoint_from_location(
                 location=agent._vehicle.get_location(),
@@ -168,7 +177,7 @@ class VehicleManager:
             else:
                 agent.lane_change("right")
         elif action == "block_the_ego":
-            # Set the same location as the ego vehicle
+            # 让普通车辆追到与自车相同位置，形成干扰
             destination = self.vehicle_agent[0].destination_waypoint.next(
                 DISTANCE_FOR_ROUTE * 5
             )[0]
@@ -178,6 +187,7 @@ class VehicleManager:
             )
             agent.ignore_traffic_lights()
         elif action == "cross_the_road":
+            # 通过插值生成一条穿越道路的全局规划序列
             current_spawn_point = self.world_manager.get_waypoint_from_location(
                 location=agent._vehicle.get_location(),
                 lane_type=getattr(carla.LaneType, info["road_type"].capitalize()),
@@ -216,9 +226,11 @@ class VehicleManager:
             ]
             agent._local_planner.set_global_plan(plan)
         elif action == "stop":  # stop or others
+            # 将 no_act 标记置为 True，表示只维持刹车不执行 planner
             agent.no_act = True
 
     def create_vehicle_agent(self, vehicle, agent_info):
+        """包装 BehaviorAgent，并根据车辆类型设置默认容错行为。"""
         behavior = agent_info.get("behavior", "normal")
         agent = BehaviorAgent(
             vehicle,
@@ -244,6 +256,7 @@ class VehicleManager:
     def add_pre_spawn_ego(
         self, ego_vehicle, ego_waypoint, agent_info, destination=None
     ):
+        """将自车加入车辆列表并预先计算相对位置信息。"""
         self.vehicles.append(ego_vehicle)
         agent = BehaviorAgent(ego_vehicle)
         if destination is None:
@@ -278,6 +291,7 @@ class VehicleManager:
     def spawn_car(
         self, spawn_point, model: str = "vehicle.lincoln.mkz_2017", agent_info=None
     ):
+        """按照指定蓝图或类型生成车辆，若失败则尝试偏移车道重试。"""
         if model == "random":
             ego_vehicle_bp = self.agent_model_manager.get_blueprint_from_type(
                 agent_info["type"]
@@ -311,6 +325,7 @@ class VehicleManager:
         return spawn_point
 
     def spawn_car_from_selected_waypoint(self, agent_info, direction):
+        """根据预先记录的 pos_id 航点批量生成前/后方车辆。"""
         pos_id_to_waypoint = getattr(self, f"{direction}_pos_id_to_waypoint")
 
         for agent in agent_info:
@@ -350,6 +365,7 @@ class VehicleManager:
             self.spawn_car(spawn_point, "random", agent)
 
     def spawn_car_from_list_of_waypoint(self, waypoint_list, agent_info, debug=False):
+        """在一系列可用航点中随机挑选位置生成车辆。"""
         if len(waypoint_list) == 0:
             return
         maximum_allow_cars = len(waypoint_list) // NUM_POINT_PER_CAR
@@ -384,6 +400,7 @@ class VehicleManager:
             waypoint_list = waypoint_list[valid_num:]
 
     def count_points_required(self, position, agent_info, get_plan=False):
+        """计算指定相对位置所需的航点数量，可选输出对应映射。"""
         pos_id_to_agent = defaultdict(list)
         for target in agent_info:
             if not target["is_ego"] and position in target["relative_to_ego"]:
@@ -426,6 +443,7 @@ class VehicleManager:
         return num_points_required
 
     def spawn_other_cars(self, agent_info, ego_agent):
+        """除自车外，根据配置生成其他车辆并放置到相对位置。"""
         ego_waypoint = self.world_manager.get_waypoint_from_location(
             ego_agent.get_location(), carla.LaneType.Driving
         )
@@ -542,7 +560,8 @@ class VehicleManager:
                 )
 
     def spawn_ego_car(self, road_id, agent_info, direction, at_junction=False):
-        # left, right, front, back
+        """在给定道路上安置自车，并预留相邻车道航点。"""
+        # 索引依次表示左、右、前、后所需的航点数量
         relative_agents_direction_count = [0, 0, 0, 0]
         relative_agents_direction_count[2] = self.count_points_required(
             "front", agent_info
@@ -652,6 +671,7 @@ class VehicleManager:
         return ego_waypoint
 
     def run_step(self):
+        """逐帧推进车辆智能体，必要时同步观察视角与销毁闲置车辆。"""
         all_done = True
         for idx, (agent, vehicle) in enumerate(zip(self.vehicle_agent, self.vehicles)):
             if idx == 0 and vehicle.is_alive:
@@ -675,6 +695,7 @@ class VehicleManager:
         return all_done
 
     def clean(self):
+        """在场景结束时销毁所有车辆，确保仿真世界干净。"""
         for vechile in self.vehicles:
             if vechile.is_alive:
                 vechile.destroy()
