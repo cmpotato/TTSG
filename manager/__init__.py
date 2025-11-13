@@ -1,3 +1,5 @@
+"""统一导出管理器模块，方便调用方按需导入。"""
+
 from .agent_manager import AgentModelManager
 from .cyclist_manager import CyclistManager
 from .pedestrian_manager import PedestrianManager
