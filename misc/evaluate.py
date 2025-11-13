@@ -1,3 +1,5 @@
+"""对生成结果进行统计评估，计算道路与智能体多样性。"""
+
 import argparse
 import glob
 import json
@@ -13,6 +15,7 @@ def parse_args():
 
 
 def evaluate(path):
+    """读取结果目录下的 JSON 文件并输出多样性指标。"""
     all_agent_files = glob.glob(os.path.join(path, "**/agent_output.json"))
     all_road_files = glob.glob(os.path.join(path, "**/road_info.json"))
 
@@ -36,6 +39,7 @@ def evaluate(path):
 
         all_road.append((town, road))
 
+    # 通过去重数量除以总数计算多样性指标
     agent_diversity = len(set(all_agent)) / len(all_agent)
     road_diversity = len(set(all_road)) / len(all_road)
 

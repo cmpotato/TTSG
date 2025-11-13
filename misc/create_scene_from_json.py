@@ -1,3 +1,5 @@
+"""根据 JSON 配置生成 CARLA 场景并保存关键结果。"""
+
 import argparse
 import json
 import os
@@ -22,6 +24,7 @@ EGO_SETUP = {
 
 
 def create_seed(seed=42):
+    """设置随机种子以保证实验结果可复现。"""
     random.seed(seed)
     np.random.seed(seed)
 
@@ -92,6 +95,7 @@ def scene_generation(
     return_ego=False,
     override_option=False,
 ):
+    # 初始化场景客户端，负责与 CARLA 服务器交互
     carla_client = CarlaClient(
         input_folder=map_folder,
         host=ip_address,
@@ -100,6 +104,7 @@ def scene_generation(
         cache_dir=cache_dir,
         override_option=override_option,
     )
+    # 将规划结果与默认自车配置合并，得到最终生成列表
     agent_planning = planning["agents"] + ([EGO_SETUP] if not return_ego else [])
     action_list = set()
     road_type_list = set()
@@ -136,6 +141,7 @@ def scene_generation(
             indent=2,
         )
 
+    # 加载目标地图并生成所有参与者
     carla_client.load_map(town_name, weather=planning["env"]["weather"])
     carla_client.spawn_all_agent(
         road_id[0],
@@ -154,6 +160,7 @@ def scene_generation(
                 for sensor_name, sensor_data in data.items():
                     if sensor_data is not None:
                         try:
+                            # 存储传感器图像，便于后续分析
                             Image.fromarray(sensor_data).save(
                                 f"{save_dir}/{sensor_name}/{count_frame:06d}.png",
                             )
