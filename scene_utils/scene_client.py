@@ -1,3 +1,5 @@
+"""封装与 CARLA 交互的客户端逻辑，负责加载地图、生成场景并采集传感器数据。"""
+
 import copy
 import random
 import secrets
@@ -21,17 +23,20 @@ from scene_utils.retreival import retrieve_roads
 
 
 def inverse_format_town_name(town_name):
+    """将 CARLA 内部的 `Carla/Maps/TownXX` 名字转换为 GraphManager 需要的小写格式。"""
     if "/" in town_name:
         town_name = town_name.rsplit("/", 1)[-1]
     return town_name[:4].lower() + str(int(town_name[4:]))
 
 
 def format_town_name(town_name):
+    """反向格式化镇名，生成可供 CARLA 加载的 `TownXX` 字符串。"""
     town_num = town_name[4:]
     return f"Town{town_num.zfill(2)}"
 
 
 class CarlaClient:
+    """对 CARLA 服务端进行高层封装，负责生成场景并同步自定义管理器。"""
     def __init__(
         self,
         input_folder="maps",
@@ -68,16 +73,11 @@ class CarlaClient:
         self.graph_manager.get_intersection_info(self, self.vehicle_manager)
 
     def set_json_file(self, json_file):
-        """JSON file with the following format:
-        {
-            "analysis": {...},
-            "retreival": {...},
-            "planning": {...},
-        }
-        """
+        """设置外部描述文件，格式包含分析、检索与规划三个部分。"""
         self.json_file = json_file
 
     def draw_point(self, location, color=(255, 0, 0)):
+        """在世界中绘制调试点，方便验证检索结果或路径。"""
         self.world.debug.draw_string(
             location,
             "O",
@@ -88,6 +88,7 @@ class CarlaClient:
         )
 
     def load_map(self, map_name, weather="ClearNoon"):
+        """按需加载地图和天气，并重新初始化各类管理器。"""
         if self.world is not None:
             self.clean()
             self.set_sync_mode(False, set_tm=False)
@@ -100,10 +101,12 @@ class CarlaClient:
         self.set_traffic_light_time(5)
 
     def set_world(self, world):
+        """直接使用已有 world 对象时，同样需要重置管理器引用。"""
         self.world = world
         self.set_manager()
 
     def set_manager(self):
+        """将 CARLA 世界、蓝图库等对象注入各个 Manager，保持状态一致。"""
         self.agent_model_manager.set_blueprint(self.world.get_blueprint_library())
         self.world_manager.set_world(self.world)
         self.vehicle_manager.set_new_manager(
@@ -120,12 +123,14 @@ class CarlaClient:
         )
 
     def set_traffic_light_time(self, duration=20):
+        """统一设定交通灯红灯时长，便于复现实验条件。"""
         actor_list = self.world.get_actors()
         for actor_ in actor_list:
             if isinstance(actor_, carla.TrafficLight):
                 actor_.set_red_time(duration)
 
     def set_sync_mode(self, sync, set_tm=False):
+        """切换 CARLA 同步/异步模式，可选择同时控制 Traffic Manager。"""
         settings = self.world.get_settings()
         settings.synchronous_mode = sync
         if sync:
@@ -138,6 +143,7 @@ class CarlaClient:
 
     @staticmethod
     def parse_image(weak_self, carla_image, name_to_put):
+        """回调函数：将 CARLA 图像转换为 numpy，并入队等待消费。"""
         self = weak_self()
         np_img = np.frombuffer(carla_image.raw_data, dtype=np.dtype("uint8"))
         np_img = copy.deepcopy(np_img)
@@ -146,6 +152,7 @@ class CarlaClient:
         getattr(self, name_to_put).put((carla_image.frame, np_img))
 
     def clean(self):
+        """销毁当前场景中的所有 actor 与传感器，避免影响下次生成。"""
         self.vehicle_manager.clean()
         self.pedestrian_manager.clean()
         self.cyclist_manager.clean()
@@ -162,6 +169,7 @@ class CarlaClient:
     def sort_road_target(
         self, road_info, required_num_of_waypoints, action_list, road_type_list
     ):
+        """为可选道路打分，优先满足动作和道路类型的组合偏好。"""
         score = 0
 
         for action, relative_position in action_list:
@@ -264,6 +272,7 @@ class CarlaClient:
         return town_name, road_id, direction, road_info
 
     def spawn_ego_monitor(self):
+        """为 ego 车辆绑定前视与鸟瞰相机，收集调试/评估所需图像。"""
         # Create sensor
         weak_self = weakref.ref(self)
         camera_rgb_bp = self.agent_model_manager.get_blueprint_from_name(
@@ -314,6 +323,7 @@ class CarlaClient:
         self.world.tick()
 
     def set_seed(self, seed=None):
+        """统一设置 numpy 与 random 的随机种子，确保结果可复现。"""
         if seed is None:
             seed = secrets.randbelow(1_000_000_000)
         np.random.seed(seed)
@@ -328,6 +338,7 @@ class CarlaClient:
         ego_agents=None,
         ego_destination=None,
     ):
+        """根据配置批量生成车辆/行人/骑行者，并返回 ego 的初始 waypoint。"""
         if ego_agents is None:
             ego_waypoint = self.vehicle_manager.spawn_ego_car(
                 road_id, agent_info, direction, at_junction
@@ -369,6 +380,7 @@ class CarlaClient:
         return ego_waypoint
 
     def check_finish(self, timeout=10.0, tick_world=True):
+        """驱动一次世界更新并获取传感器帧，返回车辆是否完成任务。"""
         vehicle_done = self.vehicle_manager.run_step()
         self.cyclist_manager.run_step()
         self.pedestrian_manager.run_step()
@@ -385,6 +397,7 @@ class CarlaClient:
         return vehicle_done, {"front_image": front_image, "bev_image": bev_image}
 
     def destroy(self, set_sync=True):
+        """销毁当前会话并按需恢复异步模式，避免阻塞下次仿真。"""
         self.clean()
         if set_sync:
             self.set_sync_mode(False)

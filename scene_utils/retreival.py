@@ -1,3 +1,5 @@
+"""根据图数据库信息检索满足特定条件的道路。"""
+
 from typing import Any, Dict
 
 import networkx as nx
@@ -6,6 +8,7 @@ from misc.constant import OBJECT_SEARCH_DICT, SIGNAL_SEARCH_DICT
 
 
 def check_one_inside_list(from_list, target_list):
+    """判断某个候选元素是否存在于道路属性中，并区分左右车道。"""
     left_road, right_road = False, False
     for from_ in from_list:
         for target in target_list:
@@ -18,13 +21,7 @@ def check_one_inside_list(from_list, target_list):
 
 
 def retrieve_roads(graph: nx.DiGraph, road_condition: Dict[str, Any]):
-    """Retrieve the roads that match the road conditions
-    Args:
-        graph (nx.Graph): The graph database.
-        road_condition (Dict[str, Any]): Road conditions for retreival.
-    Returns:
-        List[List]: The list of node that match the road conditions.
-    """
+    """根据输入条件筛选道路节点，并返回满足条件的左右道路列表。"""
     valid_node_id = []
     number_of_required_lane = road_condition["number_of_lanes"]
     required_objects = road_condition.get("required_objects", [])

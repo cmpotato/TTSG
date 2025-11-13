@@ -1,3 +1,5 @@
+"""道路方向判定与车道采样相关的工具函数集合。"""
+
 import random
 
 import carla
@@ -10,6 +12,7 @@ from .vector_utils import is_counter_clockwise, make_vector
 
 
 def check_direction(point_vector, previos_vec, start_point):
+    """根据向量夹角判断目标车道相对上一段路径的方向（左/右/直行）。"""
     start_point_next = start_point.next(DISTANCE_FOR_ROUTE)[0]
     vector = make_vector(start_point, start_point_next)
     dot_product = np.dot(
@@ -26,6 +29,7 @@ def check_direction(point_vector, previos_vec, start_point):
 
 
 def sample_correct_point(relative_to_base, previous_vector, cur_waypoint):
+    """检查随机采样到的道路是否符合预期方向并返回布尔结果。"""
     next_waypoint = cur_waypoint.next(DISTANCE_FOR_ROUTE)
     if next_waypoint is None:
         previous_waypoint = cur_waypoint.previous(DISTANCE_FOR_ROUTE)[0]
@@ -45,6 +49,7 @@ def sample_correct_point(relative_to_base, previous_vector, cur_waypoint):
 def check_direction_relative_to_ego_and_sample_all(
     waypoint_manager: WorldManager, previous_vec, road_id, direction
 ):
+    """按照 ego 当前朝向筛选路口可行驶的车道集合。"""
     right_driving_points, left_driving_points = waypoint_manager.get_left_right_driving_points(
         road_id
     )
@@ -72,6 +77,7 @@ def check_direction_relative_to_ego_and_sample_all(
 
 
 def get_correct_lane_driving(driving_points, choose_from_direction, action):
+    """基于动作选择最适合的 lane 上的 waypoint，支持左/右/直行三种。"""
     if action == "straight":
         return random.choice(driving_points)
     lane_id = set()
@@ -107,6 +113,7 @@ def check_direction_and_sample_correct_point(
     road_id,
     direction=None,
 ):
+    """综合路口结构与动作需求，筛选能够满足动作的道路并返回候选。"""
     right_driving_points, left_driving_points = waypoint_manager.get_left_right_driving_points(
         road_id
     )
@@ -167,14 +174,17 @@ def check_direction_and_sample_correct_point(
 
 
 def get_points_to_front(waypoint: carla.Waypoint, distance: float = DISTANCE_FOR_ROUTE):
+    """向前沿着当前 lane 采样，直到 lane 末端或指定距离。"""
     return waypoint.next_until_lane_end(distance)
 
 
 def get_points_to_end(waypoint: carla.Waypoint, distance: float = DISTANCE_FOR_ROUTE):
+    """向后追溯 lane 起点，收集 waypoint 列表。"""
     return waypoint.previous_until_lane_start(distance)
 
 
 def get_different_lane(waypoint):
+    """计算与当前 waypoint 侧向相邻的 lane，用于变道或生成并行路径。"""
     lane_id = waypoint.lane_id
     scale = abs(lane_id * 2)
     left_lane_waypoint = waypoint.get_left_lane()
