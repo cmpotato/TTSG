@@ -14,12 +14,14 @@ def parse_args():
     return parser.parse_args()
 
 
+# 解析 OpenDRIVE (.xodr) 文件并返回 XML 根节点
 def parse_opendrive(file_path):
     tree = ET.parse(file_path)
     root = tree.getroot()
     return root
 
 
+# 将 OpenDRIVE 地图解析为道路拓扑图，每条 road 作为节点并附带车道、信号、物体等属性
 def create_graph(opendrive_root, in_graph=None, town_name=""):
     """
     Creating a graph from the OpenDrive file with the package: `networkx`
@@ -339,6 +341,7 @@ def create_graph(opendrive_root, in_graph=None, town_name=""):
     return graph, junction_dict, available_signal_names, available_object_names
 
 
+# 从多个 .xodr 文件批量构建完整的道路拓扑图和所有路口信息
 def create_graph_from_files(opendrive_files, verbose=False) -> Tuple[nx.DiGraph, Dict[str, dict]]:
     large_junction_dict = {}
     road_graph = None
