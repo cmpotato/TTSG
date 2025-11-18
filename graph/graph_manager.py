@@ -9,11 +9,13 @@ from .graph_utils import create_graph_from_files
 REMOVE_NODE_WITH_LESS_POINTS = 6
 
 
+# 格式化城镇名称，将 TownX 转为 Town0X 形式
 def format_town_name(town_name):
     town_num = town_name[4:]
     return f"Town{town_num.zfill(2)}"
 
 
+# 初始化图管理器，加载或构建道路拓扑图和路口信息
 class GraphManager:
     def __init__(self, input_folder, use_cache=False, cache_dir=None):
 
@@ -34,12 +36,14 @@ class GraphManager:
         self.cache_dir = cache_dir
         self.town_name = None
 
+    # 获取指定城镇与道路 ID 对应的道路节点信息
     def get_node_info(self, town_name, road_id):
         for _, node in self.graph.nodes(data=True):
             if node["town_name"] == town_name and node["road_id"] == road_id:
                 return node
         return None
 
+    # 利用仿真引擎 waypoint 计算道路实际可行驶方向、对向道与长度等补充信息
     def get_intersection_info(self, client, vehicle_manager):
         if not self.road_compute:
             return
@@ -137,9 +141,11 @@ class GraphManager:
                 pickle.dump((self.graph, self.large_junction_dict), f)
         self.road_compute = False
 
+    # 设置当前操作的城镇名称
     def set_town_name(self, town_name):
         self.town_name = town_name
 
+    # 根据道路 ID 查找图中的节点编号
     def town_road_id_to_node_id(self, road_id):
         if not isinstance(road_id, str):
             road_id = str(road_id)
@@ -148,11 +154,13 @@ class GraphManager:
                 return node_id
         return None
 
+    # 由节点编号获取其城镇名、道路 ID 与节点属性
     def node_id_to_town_road_id(self, node_id, allow_junction=False):
         node = self.graph.nodes[node_id]
         town_name, road_id = node["town_name"], node["road_id"]
         return town_name, int(road_id), node
 
+    # 向前追溯道路的前继链，返回若干层的前序 road_id 列表
     def find_predecessor(self, road_id, node, max_depth=3):
         road_indices = [int(road_id)]
         depth = 0
@@ -168,6 +176,7 @@ class GraphManager:
             depth += 1
         return road_indices
 
+    # 获取指定道路参与的所有路口，并返回路口所连接的道路集合
     def get_intersection(self, node_id, from_road_id=False, junction_id_list=None) -> List[set]:
         if from_road_id:
             node_id = self.town_road_id_to_node_id(node_id)
