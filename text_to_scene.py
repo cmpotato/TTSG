@@ -264,7 +264,7 @@ def text_to_scene(
             planning_output = None
         count_planning_retry += 1
 
-    os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(save_dir, exist_ok = True)
     with open(f"{save_dir}/agent_output.json", "w") as f:
         json.dump(
             {
@@ -273,7 +273,7 @@ def text_to_scene(
                 "planning": planning_check_output,
             },
             f,
-            indent=2,
+            indent = 2,
         )
     with open(f"{save_dir}/prompt.txt", "w") as f:
         f.write(str(input_prompt))
