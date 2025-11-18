@@ -120,25 +120,25 @@ def split_planning_response(response):
     road_condition, agent_info = response.split("---")
     return eval(road_condition.strip()), eval(agent_info.strip())
 
-
+#主函数
 def text_to_scene(
-    input_prompt: str,
+    input_prompt: str,                                  #prompt
     #model_name: str = "gpt-4o",
-    model_name: str = os.environ.get('MODEL_NAME'),
+    model_name: str = os.environ.get('MODEL_NAME'),     #LLM模型名
     map_folder: str = "maps",
-    ip_address: str = "localhost",
-    port: int = 2000,
-    plan_only: bool = False,
-    save_dir: str = "text_to_scene",
+    ip_address: str = "localhost",                      #carla服务器地址
+    port: int = 2000,                                   #端口
+    plan_only: bool = False,                            #生成json后是否在carla中渲染场景
+    save_dir: str = "text_to_scene",                    #保存json和场景录像文件夹
     use_cache: bool = True,
     cache_dir: str = "graph_cache",
     return_ego: bool = False,
-    max_retry: int = 3,
+    max_retry: int = 3,                                 #LLM重试次数
     override_option: bool = False,
 ):
     chat_client = OpenAI(
-        api_key=os.environ.get('DEEPSEEK_API_KEY'),
-        base_url=os.environ.get('DEEPSEEK_API_BASE')
+        api_key = os.environ.get('DEEPSEEK_API_KEY'),
+        base_url = os.environ.get('DEEPSEEK_API_BASE')
     )
     analysis_success = False
     analysis_check_output = None
@@ -147,23 +147,23 @@ def text_to_scene(
     while not analysis_success and count_analysis_retry < max_retry:
         if analysis_check_output is None or analysis_output is None:
             analysis_input = ANALYSIS_FORMAT.format(
-                description=input_prompt,
-                return_ego="True" if return_ego else "False",
+                description = input_prompt,
+                return_ego = "True" if return_ego else "False",
             )
         else:
             analysis_input = ANALYSIS_FORMAT_WITH_ERROR.format(
-                description=input_prompt,
-                return_ego="True" if return_ego else "False",
-                error=analysis_check_output,
-                previous_output=analysis_output,
+                description = input_prompt,
+                return_ego = "True" if return_ego else "False",
+                error = analysis_check_output,
+                previous_output = analysis_output,
             )
         analysis_response = chat_client.chat.completions.create(
-            model=model_name,
-            messages=[
+            model = model_name,
+            messages = [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": analysis_input},
             ],
-            temperature=0.9,
+            temperature = 0.9,
         )
         try:
             analysis_output = analysis_response.choices[0].message.content
@@ -187,25 +187,25 @@ def text_to_scene(
     while not retreival_success and count_retreival_retry < max_retry:
         if retreival_check_output is None or retreival_output is None:
             retreival_input = ROAD_RETREIVAL_FORMAT.format(
-                description=input_prompt,
-                analysis_context=analysis_output,
-                return_ego="True" if return_ego else "False",
+                description = input_prompt,
+                analysis_context = analysis_output,
+                return_ego = "True" if return_ego else "False",
             )
         else:
             retreival_input = ROAD_RETREIVAL_FORMAT_WITH_ERROR.format(
-                description=input_prompt,
-                analysis_context=analysis_output,
-                return_ego="True" if return_ego else "False",
-                error=retreival_check_output,
-                previous_output=retreival_output,
+                description = input_prompt,
+                analysis_context = analysis_output,
+                return_ego = "True" if return_ego else "False",
+                error = retreival_check_output,
+                previous_output = retreival_output,
             )
         retreival_response = chat_client.chat.completions.create(
-            model=model_name,
-            messages=[
+            model = model_name,
+            messages = [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": retreival_input},
             ],
-            temperature=0.9,
+            temperature = 0.9,
         )
         try:
             retreival_output = retreival_response.choices[0].message.content
