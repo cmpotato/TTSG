@@ -24,7 +24,7 @@ ANALYSIS_RULE = """
 1. Each agent should have only one record. However, if the number of agents are not clearly specified, you can have multiple records.
 2. If the number of agents are not specified, you can decided from the context. For example, a traffic jam might have ten more agents and so on. However, if the agent is clearly, just follow the context.
 3. If the agent's action is not specified, it **shouldn't** be stop and block_the_ego. Other actions within the predefined list are allowed. Try to make it diverse.
-4. You don't have to return for the ego car or ego vehicle if not asksed.
+4. You don't have to return for the ego car or ego vehicle if not asksed. However, if the user requests the ego car, you must include the ego car.
 5. The objects and signals should not be given if the prompt does not stricly match in the predefined list. For example `crossing the streets` does not equal to `crosswalk`.
 6. the "stop_sign_on_road" and "sign_stop" should be applied based on the scenario and sometimes both should be considered at the same time.
 7. If the user's don't need stop sign but it is specified in the prompt, you should still include it. This rule also applies to other objects and signals.
