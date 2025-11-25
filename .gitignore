@@ -468,3 +468,4 @@ log
 **/*cache
 /save_dir
 /scene_json
+/batch_outputs

@@ -20,4 +20,4 @@ response = client.chat.completions.create(
 
 print(response.choices[0].message.content)
 
-#python text_to_scene.py --input-prompt "" --return-ego
+#python text_to_scene.py --input-prompt "" --return-ego --plan-only
