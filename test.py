@@ -20,4 +20,4 @@ response = client.chat.completions.create(
 
 print(response.choices[0].message.content)
 
-#python text_to_scene.py --input-prompt "" --return-ego --plan-only
+#python text_to_scene.py --input-prompt "A firetruck from the left road is coming when the ego car is turning right." --return-ego --plan-only

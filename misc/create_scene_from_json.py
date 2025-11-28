@@ -18,6 +18,7 @@ EGO_SETUP = {
     "relative_to_ego": "none",
     "road_type": "driving",
     "behavior": "cautious",
+    "action": "go_straight"
 }
 
 
